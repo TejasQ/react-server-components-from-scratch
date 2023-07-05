@@ -1,50 +1,31 @@
-import * as React from "react";
 import { hydrateRoot } from "react-dom/client";
 
-const baz = (k, v) => {
-  if (v === "$RE") {
+const revive = (k, v) => {
+  if (v === "$") {
     return Symbol.for("react.element");
   }
 
   return v;
 };
 
-const root = hydrateRoot(
-  document,
-  // @ts-ignore
-  JSON.parse(window.lol, baz)
-);
+// @ts-ignore
+const markup = JSON.parse(window.__initialMarkup, revive);
+
+const root = hydrateRoot(document, markup);
 
 const navigate = (to: string) => {
-  window.history.pushState(null, null, to);
   fetch(`${to}&jsx`)
     .then((r) => r.text())
-    .then((txt) => {
-      root.render(JSON.parse(txt, baz));
+    .then((data) => {
+      root.render(JSON.parse(data, revive));
     });
 };
 
-window.addEventListener(
-  "click",
-  (e: any) => {
-    console.log(e);
-    // Only listen to link clicks.
-    if (e.target.tagName !== "A") {
-      return;
-    }
+window.addEventListener("click", (e: any) => {
+  console.log(e.target);
+  if (e.target.tagName !== "A") return;
 
-    console.log(e.target);
-
-    // Prevent the browser from reloading the page but update the URL.
-    e.preventDefault();
-    // window.history.pushState(null, null, href);
-    // Call our custom logic.
-    navigate(e.target.href);
-  },
-  true
-);
-
-window.addEventListener("popstate", () => {
-  // When the user presses Back/Forward, call our custom logic too.
-  navigate(window.location.pathname);
+  e.preventDefault();
+  window.history.pushState(null, null, e.target.href);
+  navigate(e.target.href);
 });

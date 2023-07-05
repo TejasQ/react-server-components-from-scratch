@@ -1,99 +1,84 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import express from "express";
-import App from "./App";
 import { join } from "path";
+
+import Layout from "./layout";
 
 const app = express();
 
 app.use(express.static("./dist"));
 
-const escape = (k, v) => {
-  if (v === Symbol.for("react.element")) {
-    return `$RE`;
-  }
-  if (v === Symbol.for("react.module.reference")) {
-    return `$RMF`;
-  }
-
-  return v;
-};
-
 app.get("/:page", async (req, res) => {
-  const page = await import(join(process.cwd(), "dist", req.params.page));
-  const jsx = await turnJSXtoClientJSX(
-    <App bg={req.params.page === "list" ? "red" : "green"}>
-      {await page.default({ ...req.query })}
-    </App>,
-    req
+  const mod = await import(
+    join(process.cwd(), "dist", "pages", req.params.page)
+  );
+  const Page = mod.default;
+  const reactTree = await createReactTree(
+    <Layout bgColor={req.params.page === "list" ? "white" : "black"}>
+      <Page {...req.query} />
+    </Layout>
   );
 
   if (req.query.jsx === "") {
-    const payload = JSON.stringify(jsx, escape);
-    res.end(payload);
+    res.end(JSON.stringify(reactTree, escapeJsx));
     return;
   }
 
-  const htmlTree = renderToString(jsx);
-  res.setHeader("Content-Type", "text/html");
-  res.end(
-    htmlTree +
-      `<script>window.lol = \`${JSON.stringify(jsx, escape).replace(
-        /</g,
-        "\\u003c"
-      )}\`</script><script type="module" src="/client.js"></script>`
-  );
+  const html = `${renderToString(reactTree)}
+  <script>
+  window.__initialMarkup=\`${JSON.stringify(reactTree, escapeJsx)}\`;
+  </script>
+  <script src="/client.js" type="module"></script>`;
+
+  res.end(html);
 });
 
-const turnJSXtoClientJSX = async (jsx, req) => {
+const createReactTree = async (jsx) => {
   if (!jsx) {
-    return null;
+    return;
   }
-  if (["string", "number", "boolean"].includes(typeof jsx)) {
+
+  if (["string", "boolean", "number"].includes(typeof jsx)) {
     return jsx;
   }
+
   if (Array.isArray(jsx)) {
-    return Promise.all(jsx.map(turnJSXtoClientJSX));
+    return await Promise.all(jsx.map(createReactTree));
   }
-  if (typeof jsx === "object") {
-    if (jsx["$$typeof"] === Symbol.for("react.module.reference")) {
-      console.log("aefafa", jsx);
-      return "lol";
-    }
-    if (jsx["$$typeof"] === Symbol.for("react.lazy")) {
-    }
-    if (jsx["$$typeof"] === Symbol.for("react.element")) {
+
+  if (typeof jsx === "object" && jsx !== null) {
+    if (jsx.$$typeof === Symbol.for("react.element")) {
       if (typeof jsx.type === "string") {
-        return {
-          ...jsx,
-          props: await turnJSXtoClientJSX(jsx.props, req),
-        };
+        return { ...jsx, props: await createReactTree(jsx.props) };
       }
 
       if (typeof jsx.type === "function") {
         const Component = jsx.type;
         const props = jsx.props;
-
-        if (Component.name.startsWith("Client")) {
-          return null;
-        }
-
-        const renderedJsx = await Component({ ...props, ...req.query });
-        return await turnJSXtoClientJSX(renderedJsx, req);
+        const renderedComponent = await Component(props);
+        return await createReactTree(renderedComponent);
       }
     }
 
     return Object.fromEntries(
       await Promise.all(
-        Object.entries(jsx).map(async ([prop, value]) => [
-          prop,
-          await turnJSXtoClientJSX(value, req),
+        Object.entries(jsx).map(async ([key, value]) => [
+          key,
+          await createReactTree(value),
         ])
       )
     );
   }
 };
 
+const escapeJsx = (key, value) => {
+  if (value === Symbol.for("react.element")) {
+    return "$";
+  }
+  return value;
+};
+
 app.listen(3000, () => {
-  console.log("Server started on port 3000");
+  console.log("Listening on 3000!");
 });
