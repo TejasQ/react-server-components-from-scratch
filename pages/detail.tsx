@@ -1,10 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { REMOTE_URL } from "../util";
 
-const Detail = async ({ breed }) => {
-  const imageUrl = await fetch(`${REMOTE_URL}/api/breed/${breed}/images/random`)
-    .then((r) => r.json())
-    .then((data) => data.message);
+const Detail = ({ breed }) => {
+  const [imageUrl, setImageUrl] = useState("");
+
+  useEffect(() => {
+    fetch(`${REMOTE_URL}/api/breed/${breed}/images/random`)
+      .then((r) => r.json())
+      .then((data) => setImageUrl(data.message));
+  }, []);
 
   return (
     <div>
