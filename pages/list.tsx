@@ -6,6 +6,14 @@ const List = async () => {
     .then((r) => r.json())
     .then((data) => Object.keys(data.message));
 
+  const images = await Promise.all(
+    breeds.map((b) =>
+      fetch(`${REMOTE_URL}/api/breed/${b}/images/random`)
+        .then((r) => r.json())
+        .then((data) => data.message)
+    )
+  );
+
   return (
     <div>
       <h1>Welcome to my dog site!</h1>
@@ -20,6 +28,11 @@ const List = async () => {
           </li>
         ))}
       </ul>
+      <div className="grid">
+        {images.map((i) => (
+          <img key={i} alt={i} src={i} />
+        ))}
+      </div>
     </div>
   );
 };

@@ -20,6 +20,18 @@ const Layout = ({ children, bgColor }) => {
             🐶
           </span>
           <a href="/list?test">RSC Thingy</a>
+          <div>
+            <input placeholder="Your name is..." type="text" />
+            <span>
+              <strong>Server time:</strong>{" "}
+              {Intl.DateTimeFormat("de-DE", {
+                hour12: true,
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }).format(Date.now())}
+            </span>
+          </div>
         </header>
         <main>{children}</main>
       </body>
