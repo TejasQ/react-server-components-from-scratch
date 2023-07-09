@@ -1,0 +1,32 @@
+name: Deploy Platformatic DB application to the cloud
+
+on:
+  push:
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+
+jobs:
+  build_and_deploy:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout application project repository
+        uses: actions/checkout@v3
+      - name: npm install --omit=dev
+        run: npm install --omit=dev
+      - name: Deploy project
+        uses: platformatic/onestep@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          platformatic_workspace_id: ccd11b9c-5b0d-4479-990b-c4e67b9cd3b6
+          platformatic_workspace_key: ${{ secrets.PLATFORMATIC_WORKSPACE_KEY }}
+          variables: custom_variable1, custom_variable2
+          secrets: custom_secret1
+        env:
+          plt_custom_variable: test1
+          custom_variable1: test2
+          custom_variable2: test3
+          custom_secret1: test5
